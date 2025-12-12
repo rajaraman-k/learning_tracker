@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - Learning Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding-bottom: 40px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav {
+            display: flex;
+            gap: 15px;
+        }
+        .nav a, .logout-btn {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.2);
+        }
+        .nav a:hover, .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .logout-btn {
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 28px;
+        }
+        .leaderboard-item {
+            display: grid;
+            grid-template-columns: 60px 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            background: #f9f9f9;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .leaderboard-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .leaderboard-item.current-user {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 2px solid #667eea;
+        }
+        .rank {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .rank-1 { color: #ffd700; }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+        .rank-other { color: #999; }
+        .medal {
+            font-size: 36px;
+            text-align: center;
+        }
+        .username {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .current-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .stat {
+            text-align: right;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .leaderboard-item {
+                grid-template-columns: 50px 1fr;
+                gap: 10px;
+            }
+            .stat {
+                grid-column: 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🏆 Leaderboard</h1>
+            <div class="nav">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('goals') }}">Goals</a>
+                <a href="{{ url_for('weekly_summary') }}">Weekly Summary</a>
+                <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+                <form method="GET" action="{{ url_for('logout') }}" style="display: inline;">
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Top Learners</h2>
+            
+            {% if leaderboard %}
+                {% for learner in leaderboard %}
+                <div class="leaderboard-item {% if learner.username == username %}current-user{% endif %}">
+                    <div class="rank">
+                        {% if loop.index <= 3 %}
+                            <div class="medal">
+                                {% if loop.index == 1 %}🥇
+                                {% elif loop.index == 2 %}🥈
+                                {% elif loop.index == 3 %}🥉
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span class="rank-other">#{{ loop.index }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="username">
+                        {{ learner.username }}
+                        {% if learner.username == username %}
+                            <span class="current-badge">YOU</span>
+                        {% endif %}
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">{{ learner.hours }}</div>
+                        <div class="stat-label">hours</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">{{ learner.entries }}</div>
+                        <div class="stat-label">entries</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏆</div>
+                    <h3>No learners yet!</h3>
+                    <p>Be the first to start tracking your learning journey.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
