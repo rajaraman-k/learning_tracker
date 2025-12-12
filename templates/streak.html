@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streak - Learning Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        .header {
+            color: white;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 3rem; margin-bottom: 0.5rem; }
+        
+        .nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        
+        .nav a {
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .streak-hero {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .streak-number {
+            font-size: 6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .streak-label {
+            font-size: 1.5rem;
+            color: #64748b;
+            margin-bottom: 1rem;
+        }
+        
+        .streak-message {
+            font-size: 1.125rem;
+            color: #334155;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        
+        .card h2 {
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            position: relative;
+        }
+        
+        .day-header {
+            background: transparent;
+            color: #64748b;
+        }
+        
+        .day-empty {
+            background: #f1f5f9;
+            color: #cbd5e1;
+        }
+        
+        .day-active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .day-active:hover {
+            transform: scale(1.1);
+        }
+        
+        .day-hours {
+            position: absolute;
+            bottom: 2px;
+            font-size: 0.6rem;
+            opacity: 0.8;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .stat-box {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1e293b;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .motivation-box {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 2rem;
+            text-align: center;
+        }
+        
+        .motivation-box h3 {
+            color: #78350f;
+            margin-bottom: 0.5rem;
+        }
+        
+        .motivation-box p {
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 Your Learning Streak</h1>
+            <p>Keep the fire burning, {{ username }}!</p>
+            <div class="nav">
+                <a href="/dashboard">← Dashboard</a>
+                <a href="/settings">⚙️ Settings</a>
+            </div>
+        </div>
+
+        <div class="streak-hero">
+            <div class="streak-number">🔥 {{ streak }}</div>
+            <div class="streak-label">Day Streak</div>
+            <div class="streak-message">
+                {% if streak == 0 %}
+                    Start your journey today! Log your first learning entry.
+                {% elif streak == 1 %}
+                    Great start! Keep going to build your streak! 💪
+                {% elif streak < 7 %}
+                    You're on fire! {{ 7 - streak }} more days to reach a week! 🎯
+                {% elif streak < 30 %}
+                    Amazing consistency! {{ 30 - streak }} days until 30-day milestone! 🚀
+                {% elif streak < 100 %}
+                    Incredible dedication! You're {{ streak }} days strong! 🌟
+                {% else %}
+                    LEGENDARY! {{ streak }} days of continuous learning! 👑
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📅 Last 30 Days Activity</h2>
+            <div class="calendar-grid">
+                <div class="calendar-day day-header">Sun</div>
+                <div class="calendar-day day-header">Mon</div>
+                <div class="calendar-day day-header">Tue</div>
+                <div class="calendar-day day-header">Wed</div>
+                <div class="calendar-day day-header">Thu</div>
+                <div class="calendar-day day-header">Fri</div>
+                <div class="calendar-day day-header">Sat</div>
+                
+                {% set today = '' %}
+                {% set days_back = 29 %}
+                
+                {% for i in range(days_back, -1, -1) %}
+                    {% set day_date = (now - timedelta(days=i)).strftime('%Y-%m-%d') %}
+                    {% set day_name = (now - timedelta(days=i)).strftime('%d') %}
+                    {% set hours = activity_map.get(day_date, 0) %}
+                    
+                    {% if hours > 0 %}
+                        <div class="calendar-day day-active" title="{{ day_date }}: {{ hours }}h">
+                            {{ day_name }}
+                            <div class="day-hours">{{ hours }}h</div>
+                        </div>
+                    {% else %}
+                        <div class="calendar-day day-empty">
+                            {{ day_name }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value">{{ activity_map.values()|sum|round(1) }}</div>
+                    <div class="stat-label">Total Hours (30d)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">{{ activity_map|length }}</div>
+                    <div class="stat-label">Active Days</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">{{ ((activity_map.values()|sum) / (activity_map|length))|round(1) if activity_map|length > 0 else 0 }}</div>
+                    <div class="stat-label">Avg Hours/Day</div>
+                </div>
+            </div>
+
+            <div class="motivation-box">
+                <h3>💡 Keep Your Streak Alive!</h3>
+                <p>
+                    {% if streak >= 7 %}
+                        You've proven your commitment! Don't break the chain now! 🔗
+                    {% else %}
+                        Consistency is key! Just 15 minutes a day can make a huge difference! ⚡
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Make activity map available to template
+        const now = new Date();
+        const timedelta = (days) => {
+            const d = new Date(now);
+            d.setDate(d.getDate() - days);
+            return d;
+        };
+    </script>
+</body>
+</html>

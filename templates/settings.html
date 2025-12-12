@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Learning Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        .header {
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        
+        .nav {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .nav a {
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-bottom: 2rem;
+        }
+        
+        .card h2 {
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .streak-display {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+        
+        .streak-number {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #92400e;
+        }
+        
+        .streak-label {
+            color: #78350f;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #334155;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .form-group input[type="email"],
+        .form-group input[type="time"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #f8fafc;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #e2e8f0;
+            color: #334155;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert-success { background: #dcfce7; color: #166534; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        
+        .info-box {
+            background: #e0e7ff;
+            padding: 1rem;
+            border-radius: 10px;
+            color: #4338ca;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+        
+        .info-box strong {
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ Settings</h1>
+            <p>Manage your reminders and preferences</p>
+            <div class="nav">
+                <a href="/dashboard">← Back to Dashboard</a>
+                <a href="/streak">🔥 View Streak</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="streak-display">
+            <div class="streak-number">🔥 {{ streak }}</div>
+            <div class="streak-label">Day Streak!</div>
+        </div>
+
+        <div class="card">
+            <h2>📧 Email Reminders</h2>
+            
+            <div class="info-box">
+                <strong>💡 How it works:</strong>
+                Enable reminders to receive daily emails if you haven't logged your learning yet. 
+                Stay consistent and build your streak! 🚀
+            </div>
+
+            <form action="/settings" method="POST">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="your-email@example.com"
+                        value="{{ user.email or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input 
+                            type="checkbox" 
+                            id="reminderEnabled" 
+                            name="reminderEnabled"
+                            {% if user.reminderEnabled %}checked{% endif %}
+                        >
+                        <label for="reminderEnabled" style="margin: 0;">
+                            Enable daily reminders
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reminderTime">Reminder Time</label>
+                    <input 
+                        type="time" 
+                        id="reminderTime" 
+                        name="reminderTime"
+                        value="{{ user.reminderTime or '20:00' }}"
+                    >
+                </div>
+
+                <button type="submit" class="btn-primary">💾 Save Settings</button>
+            </form>
+
+            <div style="margin-top: 1rem;">
+                <button onclick="testReminder()" class="btn-secondary">
+                    📤 Send Test Reminder
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>👤 Account Info</h2>
+            <p><strong>Username:</strong> {{ username }}</p>
+            <p style="color: #64748b; margin-top: 0.5rem;">
+                Member since {{ user.createdAt.strftime('%B %d, %Y') if user.createdAt else 'Unknown' }}
+            </p>
+        </div>
+    </div>
+
+    <script>
+        async function testReminder() {
+            try {
+                const response = await fetch('/api/reminder-test');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Test reminder sent! Check your email.');
+                } else {
+                    alert('❌ ' + (data.error || 'Failed to send reminder'));
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

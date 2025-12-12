@@ -7,6 +7,8 @@ from bson import ObjectId
 from dotenv import load_dotenv
 from functools import wraps
 from collections import defaultdict
+from threading import Thread
+
 
 # Load environment variables
 load_dotenv()
@@ -449,7 +451,240 @@ def get_entries():
     except Exception as e:
         return jsonify({'message': 'Error fetching entries', 'error': str(e)}), 500
 
+# Email Configuration
+SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+SMTP_EMAIL = os.getenv('SMTP_EMAIL')
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
+REMINDER_TIME = os.getenv('REMINDER_TIME', '20:00')  # 8 PM default
+
+# Helper Functions
+
+def send_email_reminder(user_email, username):
+    """Send email reminder to user"""
+    try:
+        if not SMTP_EMAIL or not SMTP_PASSWORD:
+            print("Email credentials not configured")
+            return False
+            
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_EMAIL
+        msg['To'] = user_email
+        msg['Subject'] = '📚 Daily Learning Reminder - Learning Tracker'
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;">
+                <h2 style="color: #667eea;">📚 Hi {username}!</h2>
+                <p style="font-size: 16px; color: #333;">
+                    Don't forget to log your learning for today! 🎯
+                </p>
+                <p style="font-size: 14px; color: #666;">
+                    Even 15 minutes of learning counts! Keep your streak alive! 🔥
+                </p>
+                <a href="http://localhost:5000/dashboard" 
+                   style="display: inline-block; margin-top: 20px; padding: 12px 24px; 
+                          background: linear-gradient(135deg, #667eea, #764ba2); 
+                          color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    Log Your Learning →
+                </a>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999;">
+                    You're receiving this because you have reminders enabled in Learning Tracker.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+        
+        print(f"✅ Reminder sent to {username}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send email to {username}: {str(e)}")
+        return False
+
+def check_user_logged_today(username):
+    """Check if user has logged any entry today"""
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
+    entry = entries_collection.find_one({
+        'username': username,
+        'date': {'$gte': today_start, '$lt': today_end}
+    })
+    
+    return entry is not None
+
+def get_user_streak(username):
+    """Calculate user's current learning streak"""
+    entries = list(entries_collection.find({'username': username}).sort('date', -1))
+    
+    if not entries:
+        return 0
+    
+    streak = 0
+    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get unique dates
+    dates_logged = set()
+    for entry in entries:
+        entry_date = entry['date'].replace(hour=0, minute=0, second=0, microsecond=0)
+        dates_logged.add(entry_date)
+    
+    dates_logged = sorted(dates_logged, reverse=True)
+    
+    # Check if logged today or yesterday (to not break streak)
+    if dates_logged:
+        most_recent = dates_logged[0]
+        if (current_date - most_recent).days > 1:
+            return 0  # Streak broken
+    
+    # Count consecutive days
+    for i, date in enumerate(dates_logged):
+        expected_date = current_date - timedelta(days=i)
+        if date.date() == expected_date.date():
+            streak += 1
+        else:
+            break
+    
+    return streak
+
+def send_daily_reminders():
+    """Send reminders to all users who haven't logged today"""
+    print("🔔 Checking for users who need reminders...")
+    
+    users = list(users_collection.find({'reminderEnabled': True}))
+    
+    for user in users:
+        username = user['username']
+        user_email = user.get('email')
+        
+        if not user_email:
+            continue
+        
+        # Check if user has logged today
+        if not check_user_logged_today(username):
+            print(f"📧 Sending reminder to {username}...")
+            send_email_reminder(user_email, username)
+        else:
+            print(f"✅ {username} already logged today")
+
+def run_scheduler():
+    """Run the reminder scheduler in background"""
+    schedule.every().day.at(REMINDER_TIME).do(send_daily_reminders)
+    
+    print(f"⏰ Reminder scheduler started! Will send reminders at {REMINDER_TIME}")
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
+# Start scheduler in background thread
+def start_reminder_scheduler():
+    """Start the reminder scheduler in a background thread"""
+    scheduler_thread = Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+# ============================================
+# NEW ROUTES TO ADD TO YOUR APP
+# ============================================
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    """User settings - configure reminders"""
+    username = session.get('username')
+    user = users_collection.find_one({'username': username})
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        reminder_enabled = request.form.get('reminderEnabled') == 'on'
+        reminder_time = request.form.get('reminderTime', '20:00')
+        
+        users_collection.update_one(
+            {'username': username},
+            {'$set': {
+                'email': email,
+                'reminderEnabled': reminder_enabled,
+                'reminderTime': reminder_time,
+                'updatedAt': datetime.now()
+            }}
+        )
+        
+        flash('Settings updated successfully!', 'success')
+        return redirect(url_for('settings'))
+    
+    # Calculate streak
+    streak = get_user_streak(username)
+    
+    return render_template('settings.html', 
+                         user=user or {}, 
+                         username=username,
+                         streak=streak)
+
+@app.route('/api/reminder-test')
+@login_required
+def test_reminder():
+    """Test endpoint to send a reminder immediately"""
+    username = session.get('username')
+    user = users_collection.find_one({'username': username})
+    
+    if not user or not user.get('email'):
+        return jsonify({'error': 'Email not configured'}), 400
+    
+    success = send_email_reminder(user['email'], username)
+    
+    if success:
+        return jsonify({'message': 'Test reminder sent!'})
+    else:
+        return jsonify({'error': 'Failed to send reminder'}), 500
+
+@app.route('/streak')
+@login_required
+def streak():
+    """Show user's learning streak"""
+    username = session.get('username')
+    streak_count = get_user_streak(username)
+    
+    # Get last 30 days activity
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    entries = list(entries_collection.find({
+        'username': username,
+        'date': {'$gte': thirty_days_ago}
+    }).sort('date', -1))
+    
+    # Create activity calendar
+    activity_map = {}
+    for entry in entries:
+        date_str = entry['date'].strftime('%Y-%m-%d')
+        if date_str not in activity_map:
+            activity_map[date_str] = 0
+        activity_map[date_str] += entry.get('hours', 0)
+    
+    return render_template('streak.html', 
+                         username=username,
+                         streak=streak_count,
+                         activity_map=activity_map)
+
+
+
 if __name__ == '__main__':
     print(f'🚀 Server running on http://localhost:{PORT}')
     print(f'📂 Make sure templates folder exists with all HTML files!')
+    
+    # Start reminder scheduler if email is configured
+    if SMTP_EMAIL and SMTP_PASSWORD:
+        print(f'⏰ Starting reminder scheduler (reminders at {REMINDER_TIME})')
+        start_reminder_scheduler()
+    else:
+        print('⚠️  Email reminders disabled (configure SMTP_EMAIL and SMTP_PASSWORD in .env)')
+    
     app.run(host='0.0.0.0', port=PORT, debug=True)
