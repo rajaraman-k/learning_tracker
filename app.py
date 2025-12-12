@@ -8,13 +8,9 @@ from dotenv import load_dotenv
 from functools import wraps
 from collections import defaultdict
 from threading import Thread
-import smtplib
-import ssl
 import schedule
 import time
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +22,14 @@ app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 # Get MongoDB URI from environment variable
 MONGODB_URI = os.getenv('MONGODB_URI')
 PORT = int(os.getenv('PORT', 5000))
+
+# Email Configuration - Mailjet
+MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
+MAILJET_API_SECRET = os.getenv('MAILJET_API_SECRET')
+MAILJET_FROM_EMAIL = os.getenv('MAILJET_FROM_EMAIL', 'noreply@yourdomain.com')
+MAILJET_FROM_NAME = os.getenv('MAILJET_FROM_NAME', 'Learning Tracker')
+REMINDER_TIME = os.getenv('REMINDER_TIME', '20:00')
+BASE_URL = os.getenv('BASE_URL', 'http://localhost:5000')
 
 # Check if MongoDB URI is provided
 if not MONGODB_URI:
@@ -63,7 +67,225 @@ def get_week_start(date=None):
         date = datetime.now()
     return date - timedelta(days=date.weekday())
 
-# Authentication Routes
+# Email Helper Functions
+
+def send_email_reminder(user_email, username):
+    """Send email reminder using Mailjet API"""
+    try:
+        if not MAILJET_API_KEY or not MAILJET_API_SECRET:
+            print("❌ Mailjet credentials not configured")
+            return False
+        
+        # Mailjet API endpoint
+        mailjet_url = "https://api.mailjet.com/v3.1/send"
+        
+        # Prepare email data
+        email_data = {
+            "Messages": [
+                {
+                    "From": {
+                        "Email": MAILJET_FROM_EMAIL,
+                        "Name": MAILJET_FROM_NAME
+                    },
+                    "To": [
+                        {
+                            "Email": user_email,
+                            "Name": username
+                        }
+                    ],
+                    "Subject": "📚 Daily Learning Reminder - Learning Tracker",
+                    "HTMLPart": f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    </head>
+                    <body style="margin: 0; padding: 0; font-family: 'Arial', sans-serif; background-color: #f5f5f5;">
+                        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f5f5f5; padding: 20px;">
+                            <tr>
+                                <td align="center">
+                                    <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                        <tr>
+                                            <td style="padding: 40px 30px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px 10px 0 0;">
+                                                <h1 style="margin: 0; color: #ffffff; font-size: 32px;">📚</h1>
+                                                <h2 style="margin: 10px 0 0 0; color: #ffffff; font-size: 24px; font-weight: 600;">Learning Tracker</h2>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 40px 30px;">
+                                                <h3 style="margin: 0 0 20px 0; color: #333333; font-size: 22px;">Hi {username}! 👋</h3>
+                                                <p style="margin: 0 0 20px 0; color: #555555; font-size: 16px; line-height: 1.6;">
+                                                    Don't forget to log your learning for today! 🎯
+                                                </p>
+                                                <p style="margin: 0 0 30px 0; color: #666666; font-size: 15px; line-height: 1.6;">
+                                                    Even 15 minutes of learning counts! Keep your streak alive and stay consistent with your learning journey. 🔥
+                                                </p>
+                                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                    <tr>
+                                                        <td align="center" style="padding: 10px 0;">
+                                                            <a href="{BASE_URL}/dashboard" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #667eea, #764ba2); color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
+                                                                Log Your Learning →
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 0 30px 40px 30px;">
+                                                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8f9fa; border-radius: 8px; padding: 20px;">
+                                                    <tr>
+                                                        <td style="text-align: center;">
+                                                            <p style="margin: 0; color: #667eea; font-size: 14px; font-weight: 600;">💡 Quick Tip</p>
+                                                            <p style="margin: 10px 0 0 0; color: #666666; font-size: 14px; line-height: 1.5;">
+                                                                Consistency is key! Try to log at least one learning session every day.
+                                                            </p>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 30px; text-align: center; border-top: 1px solid #eeeeee;">
+                                                <p style="margin: 0 0 10px 0; color: #999999; font-size: 12px;">
+                                                    You're receiving this because you have reminders enabled in Learning Tracker.
+                                                </p>
+                                                <p style="margin: 0; color: #999999; font-size: 12px;">
+                                                    <a href="{BASE_URL}/settings" style="color: #667eea; text-decoration: none;">Manage your settings</a>
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </body>
+                    </html>
+                    """,
+                    "TextPart": f"""
+                    Hi {username}!
+                    
+                    Don't forget to log your learning for today! 🎯
+                    
+                    Even 15 minutes of learning counts! Keep your streak alive and stay consistent with your learning journey.
+                    
+                    Log your learning here: {BASE_URL}/dashboard
+                    
+                    ---
+                    You're receiving this because you have reminders enabled in Learning Tracker.
+                    Manage your settings: {BASE_URL}/settings
+                    """
+                }
+            ]
+        }
+        
+        # Send email via Mailjet
+        response = requests.post(
+            mailjet_url,
+            auth=(MAILJET_API_KEY, MAILJET_API_SECRET),
+            headers={'Content-Type': 'application/json'},
+            json=email_data
+        )
+        
+        if response.status_code == 200:
+            print(f"✅ Reminder email sent to {username} ({user_email})")
+            return True
+        else:
+            print(f"❌ Mailjet API error: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Failed to send email to {username}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def check_user_logged_today(username):
+    """Check if user has logged any entry today"""
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    
+    entry = entries_collection.find_one({
+        'username': username,
+        'date': {'$gte': today_start, '$lt': today_end}
+    })
+    
+    return entry is not None
+
+def get_user_streak(username):
+    """Calculate user's current learning streak"""
+    entries = list(entries_collection.find({'username': username}).sort('date', -1))
+    
+    if not entries:
+        return 0
+    
+    streak = 0
+    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get unique dates
+    dates_logged = set()
+    for entry in entries:
+        entry_date = entry['date'].replace(hour=0, minute=0, second=0, microsecond=0)
+        dates_logged.add(entry_date)
+    
+    dates_logged = sorted(dates_logged, reverse=True)
+    
+    # Check if logged today or yesterday (to not break streak)
+    if dates_logged:
+        most_recent = dates_logged[0]
+        if (current_date - most_recent).days > 1:
+            return 0  # Streak broken
+    
+    # Count consecutive days
+    for i, date in enumerate(dates_logged):
+        expected_date = current_date - timedelta(days=i)
+        if date.date() == expected_date.date():
+            streak += 1
+        else:
+            break
+    
+    return streak
+
+def send_daily_reminders():
+    """Send reminders to all users who haven't logged today"""
+    print("🔔 Checking for users who need reminders...")
+    
+    users = list(users_collection.find({'reminderEnabled': True}))
+    
+    for user in users:
+        username = user['username']
+        user_email = user.get('email')
+        
+        if not user_email:
+            continue
+        
+        # Check if user has logged today
+        if not check_user_logged_today(username):
+            print(f"📧 Sending reminder to {username}...")
+            send_email_reminder(user_email, username)
+        else:
+            print(f"✅ {username} already logged today")
+
+def run_scheduler():
+    """Run the reminder scheduler in background"""
+    schedule.every().day.at(REMINDER_TIME).do(send_daily_reminders)
+    
+    print(f"⏰ Reminder scheduler started! Will send reminders at {REMINDER_TIME}")
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
+def start_reminder_scheduler():
+    """Start the reminder scheduler in a background thread"""
+    scheduler_thread = Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+# ============================================
+# AUTHENTICATION ROUTES
+# ============================================
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -103,9 +325,18 @@ def logout():
     flash(f'Goodbye, {username}!', 'info')
     return redirect(url_for('login'))
 
-# Main Application Routes
+# ============================================
+# MAIN APPLICATION ROUTES
+# ============================================
 
 @app.route('/')
+def index():
+    """Root route - redirect to dashboard if logged in, otherwise to login"""
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
 @login_required
 def dashboard():
     """User's personal dashboard"""
@@ -235,7 +466,7 @@ def delete_entry(entry_id):
         username = session.get('username')
         result = entries_collection.find_one_and_delete({
             '_id': ObjectId(entry_id),
-            'username': username  # Only delete if it's the user's entry
+            'username': username
         })
         
         if result:
@@ -432,207 +663,8 @@ def leaderboard():
         flash(f'Error loading leaderboard: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
 
-# API Routes (for external access if needed)
-
-@app.route('/api/entries', methods=['GET'])
-def get_entries():
-    """Get all entries (optionally filtered by user)"""
-    try:
-        username = request.args.get('username')
-        query = {'username': username} if username else {}
-        
-        entries = list(entries_collection.find(query).sort('date', -1))
-        result = []
-        for entry in entries:
-            result.append({
-                '_id': str(entry['_id']),
-                'username': entry.get('username', ''),
-                'date': entry.get('date', datetime.now()).isoformat(),
-                'hours': entry.get('hours', 0),
-                'notes': entry.get('notes', ''),
-                'category': entry.get('category', 'General'),
-                'status': entry.get('status', 'completed')
-            })
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'message': 'Error fetching entries', 'error': str(e)}), 500
-
-# Email Configuration
-SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-SMTP_EMAIL = os.getenv('SMTP_EMAIL')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
-REMINDER_TIME = os.getenv('REMINDER_TIME', '20:00')  # 8 PM default
-
-# Helper Functions
-
-def send_email_reminder(user_email, username):
-    """Send email reminder to user"""
-    try:
-        if not SMTP_EMAIL or not SMTP_PASSWORD:
-            print("❌ Email credentials not configured")
-            return False
-        
-        print(f"📧 Preparing email for {user_email}...")
-        
-        msg = MIMEMultipart()
-        msg['From'] = SMTP_EMAIL
-        msg['To'] = user_email
-        msg['Subject'] = '📚 Daily Learning Reminder - Learning Tracker'
-        
-        # Get the deployed URL from environment or use placeholder
-        base_url = os.getenv('RENDER_EXTERNAL_URL', 'https://your-app.onrender.com')
-        
-        body = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;">
-                <h2 style="color: #667eea;">📚 Hi {username}!</h2>
-                <p style="font-size: 16px; color: #333;">
-                    Don't forget to log your learning for today! 🎯
-                </p>
-                <p style="font-size: 14px; color: #666;">
-                    Even 15 minutes of learning counts! Keep your streak alive! 🔥
-                </p>
-                <a href="{base_url}/dashboard" 
-                   style="display: inline-block; margin-top: 20px; padding: 12px 24px; 
-                          background: linear-gradient(135deg, #667eea, #764ba2); 
-                          color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                    Log Your Learning →
-                </a>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-                <p style="font-size: 12px; color: #999;">
-                    You're receiving this because you have reminders enabled in Learning Tracker.
-                </p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        msg.attach(MIMEText(body, 'html'))
-        
-        print(f"📤 Connecting to SMTP server: {SMTP_SERVER}:{SMTP_PORT}")
-        
-        # Create SSL context
-        context = ssl.create_default_context()
-        
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-            print("🔐 Starting TLS...")
-            server.starttls(context=context)
-            
-            print("🔑 Logging in...")
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            
-            print("📨 Sending message...")
-            server.send_message(msg)
-        
-        print(f"✅ Reminder sent successfully to {username}")
-        return True
-        
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"❌ SMTP Authentication failed: {str(e)}")
-        print("💡 Make sure you're using a Gmail App Password, not your regular password")
-        return False
-    except smtplib.SMTPException as e:
-        print(f"❌ SMTP Error: {str(e)}")
-        return False
-    except Exception as e:
-        print(f"❌ Failed to send email to {username}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
-```
-
-### 3. **Add Environment Variable in Render**
-
-Add this to your Render environment variables:
-```
-RENDER_EXTERNAL_URL=https://your-app-name.onrender.com
-
-def check_user_logged_today(username):
-    """Check if user has logged any entry today"""
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
-    
-    entry = entries_collection.find_one({
-        'username': username,
-        'date': {'$gte': today_start, '$lt': today_end}
-    })
-    
-    return entry is not None
-
-def get_user_streak(username):
-    """Calculate user's current learning streak"""
-    entries = list(entries_collection.find({'username': username}).sort('date', -1))
-    
-    if not entries:
-        return 0
-    
-    streak = 0
-    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Get unique dates
-    dates_logged = set()
-    for entry in entries:
-        entry_date = entry['date'].replace(hour=0, minute=0, second=0, microsecond=0)
-        dates_logged.add(entry_date)
-    
-    dates_logged = sorted(dates_logged, reverse=True)
-    
-    # Check if logged today or yesterday (to not break streak)
-    if dates_logged:
-        most_recent = dates_logged[0]
-        if (current_date - most_recent).days > 1:
-            return 0  # Streak broken
-    
-    # Count consecutive days
-    for i, date in enumerate(dates_logged):
-        expected_date = current_date - timedelta(days=i)
-        if date.date() == expected_date.date():
-            streak += 1
-        else:
-            break
-    
-    return streak
-
-def send_daily_reminders():
-    """Send reminders to all users who haven't logged today"""
-    print("🔔 Checking for users who need reminders...")
-    
-    users = list(users_collection.find({'reminderEnabled': True}))
-    
-    for user in users:
-        username = user['username']
-        user_email = user.get('email')
-        
-        if not user_email:
-            continue
-        
-        # Check if user has logged today
-        if not check_user_logged_today(username):
-            print(f"📧 Sending reminder to {username}...")
-            send_email_reminder(user_email, username)
-        else:
-            print(f"✅ {username} already logged today")
-
-def run_scheduler():
-    """Run the reminder scheduler in background"""
-    schedule.every().day.at(REMINDER_TIME).do(send_daily_reminders)
-    
-    print(f"⏰ Reminder scheduler started! Will send reminders at {REMINDER_TIME}")
-    
-    while True:
-        schedule.run_pending()
-        time.sleep(60)  # Check every minute
-
-# Start scheduler in background thread
-def start_reminder_scheduler():
-    """Start the reminder scheduler in a background thread"""
-    scheduler_thread = Thread(target=run_scheduler, daemon=True)
-    scheduler_thread.start()
-
 # ============================================
-# NEW ROUTES TO ADD TO YOUR APP
+# SETTINGS & REMINDER ROUTES
 # ============================================
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -677,18 +709,18 @@ def test_reminder():
         user = users_collection.find_one({'username': username})
         
         if not user or not user.get('email'):
-            return jsonify({'error': 'Email not configured'}), 400
+            return jsonify({'error': 'Email not configured. Please set your email in settings first.'}), 400
         
-        print(f"Attempting to send email to {user.get('email')}")
+        print(f"📧 Attempting to send test email to {user.get('email')}")
         success = send_email_reminder(user['email'], username)
         
         if success:
-            return jsonify({'message': 'Test reminder sent!'}), 200
+            return jsonify({'message': 'Test reminder sent! Check your email.'}), 200
         else:
-            return jsonify({'error': 'Failed to send reminder - check server logs'}), 500
+            return jsonify({'error': 'Failed to send reminder. Check server logs for details.'}), 500
             
     except Exception as e:
-        print(f"Error in test_reminder: {str(e)}")
+        print(f"❌ Error in test_reminder: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Exception occurred: {str(e)}'}), 500
@@ -718,19 +750,50 @@ def streak():
     return render_template('streak.html', 
                          username=username,
                          streak=streak_count,
-                         activity_map=activity_map)
+                         activity_map=activity_map,
+                         now=datetime.now(),
+                         timedelta=timedelta)
 
+# ============================================
+# API ROUTES
+# ============================================
 
+@app.route('/api/entries', methods=['GET'])
+def get_entries():
+    """Get all entries (optionally filtered by user)"""
+    try:
+        username = request.args.get('username')
+        query = {'username': username} if username else {}
+        
+        entries = list(entries_collection.find(query).sort('date', -1))
+        result = []
+        for entry in entries:
+            result.append({
+                '_id': str(entry['_id']),
+                'username': entry.get('username', ''),
+                'date': entry.get('date', datetime.now()).isoformat(),
+                'hours': entry.get('hours', 0),
+                'notes': entry.get('notes', ''),
+                'category': entry.get('category', 'General'),
+                'status': entry.get('status', 'completed')
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'message': 'Error fetching entries', 'error': str(e)}), 500
+
+# ============================================
+# MAIN ENTRY POINT
+# ============================================
 
 if __name__ == '__main__':
     print(f'🚀 Server running on http://localhost:{PORT}')
     print(f'📂 Make sure templates folder exists with all HTML files!')
     
-    # Start reminder scheduler if email is configured
-    if SMTP_EMAIL and SMTP_PASSWORD:
+    # Start reminder scheduler if Mailjet is configured
+    if MAILJET_API_KEY and MAILJET_API_SECRET:
         print(f'⏰ Starting reminder scheduler (reminders at {REMINDER_TIME})')
         start_reminder_scheduler()
     else:
-        print('⚠️  Email reminders disabled (configure SMTP_EMAIL and SMTP_PASSWORD in .env)')
+        print('⚠️  Email reminders disabled (configure MAILJET_API_KEY and MAILJET_API_SECRET in .env)')
     
     app.run(host='0.0.0.0', port=PORT, debug=True)
