@@ -541,13 +541,7 @@ def send_email_reminder(user_email, username):
         import traceback
         traceback.print_exc()
         return False
-```
 
-### 3. **Add Environment Variable in Render**
-
-Add this to your Render environment variables:
-```
-RENDER_EXTERNAL_URL=https://your-app-name.onrender.com
 
 def check_user_logged_today(username):
     """Check if user has logged any entry today"""
