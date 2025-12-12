@@ -470,13 +470,18 @@ def send_email_reminder(user_email, username):
     """Send email reminder to user"""
     try:
         if not SMTP_EMAIL or not SMTP_PASSWORD:
-            print("Email credentials not configured")
+            print("❌ Email credentials not configured")
             return False
-            
+        
+        print(f"📧 Preparing email for {user_email}...")
+        
         msg = MIMEMultipart()
         msg['From'] = SMTP_EMAIL
         msg['To'] = user_email
         msg['Subject'] = '📚 Daily Learning Reminder - Learning Tracker'
+        
+        # Get the deployed URL from environment or use placeholder
+        base_url = os.getenv('RENDER_EXTERNAL_URL', 'https://your-app.onrender.com')
         
         body = f"""
         <html>
@@ -489,7 +494,7 @@ def send_email_reminder(user_email, username):
                 <p style="font-size: 14px; color: #666;">
                     Even 15 minutes of learning counts! Keep your streak alive! 🔥
                 </p>
-                <a href="http://localhost:5000/dashboard" 
+                <a href="{base_url}/dashboard" 
                    style="display: inline-block; margin-top: 20px; padding: 12px 24px; 
                           background: linear-gradient(135deg, #667eea, #764ba2); 
                           color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
@@ -506,16 +511,43 @@ def send_email_reminder(user_email, username):
         
         msg.attach(MIMEText(body, 'html'))
         
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
+        print(f"📤 Connecting to SMTP server: {SMTP_SERVER}:{SMTP_PORT}")
+        
+        # Create SSL context
+        context = ssl.create_default_context()
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            print("🔐 Starting TLS...")
+            server.starttls(context=context)
+            
+            print("🔑 Logging in...")
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            
+            print("📨 Sending message...")
             server.send_message(msg)
         
-        print(f"✅ Reminder sent to {username}")
+        print(f"✅ Reminder sent successfully to {username}")
         return True
+        
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"❌ SMTP Authentication failed: {str(e)}")
+        print("💡 Make sure you're using a Gmail App Password, not your regular password")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"❌ SMTP Error: {str(e)}")
+        return False
     except Exception as e:
         print(f"❌ Failed to send email to {username}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
+```
+
+### 3. **Add Environment Variable in Render**
+
+Add this to your Render environment variables:
+```
+RENDER_EXTERNAL_URL=https://your-app-name.onrender.com
 
 def check_user_logged_today(username):
     """Check if user has logged any entry today"""
@@ -640,18 +672,26 @@ def settings():
 @login_required
 def test_reminder():
     """Test endpoint to send a reminder immediately"""
-    username = session.get('username')
-    user = users_collection.find_one({'username': username})
-    
-    if not user or not user.get('email'):
-        return jsonify({'error': 'Email not configured'}), 400
-    
-    success = send_email_reminder(user['email'], username)
-    
-    if success:
-        return jsonify({'message': 'Test reminder sent!'})
-    else:
-        return jsonify({'error': 'Failed to send reminder'}), 500
+    try:
+        username = session.get('username')
+        user = users_collection.find_one({'username': username})
+        
+        if not user or not user.get('email'):
+            return jsonify({'error': 'Email not configured'}), 400
+        
+        print(f"Attempting to send email to {user.get('email')}")
+        success = send_email_reminder(user['email'], username)
+        
+        if success:
+            return jsonify({'message': 'Test reminder sent!'}), 200
+        else:
+            return jsonify({'error': 'Failed to send reminder - check server logs'}), 500
+            
+    except Exception as e:
+        print(f"Error in test_reminder: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Exception occurred: {str(e)}'}), 500
 
 @app.route('/streak')
 @login_required
