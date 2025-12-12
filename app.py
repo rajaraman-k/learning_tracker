@@ -283,9 +283,9 @@ def start_reminder_scheduler():
     scheduler_thread = Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
 
-# ============================================
+# 
 # AUTHENTICATION ROUTES
-# ============================================
+# 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -325,9 +325,9 @@ def logout():
     flash(f'Goodbye, {username}!', 'info')
     return redirect(url_for('login'))
 
-# ============================================
+# 
 # MAIN APPLICATION ROUTES
-# ============================================
+# 
 
 @app.route('/')
 def index():
@@ -663,8 +663,7 @@ def leaderboard():
         flash(f'Error loading leaderboard: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
 
-<<<<<<< HEAD
-=======
+
 # API Routes (for external access if needed)
 
 @app.route('/api/entries', methods=['GET'])
@@ -858,10 +857,10 @@ def start_reminder_scheduler():
     scheduler_thread = Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
 
->>>>>>> 01055adda650d647ae4f4b8e0bcf81d69e9a1263
-# ============================================
+
+# 
 # SETTINGS & REMINDER ROUTES
-# ============================================
+# 
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
@@ -950,9 +949,9 @@ def streak():
                          now=datetime.now(),
                          timedelta=timedelta)
 
-# ============================================
+# 
 # API ROUTES
-# ============================================
+# 
 
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
@@ -977,9 +976,9 @@ def get_entries():
     except Exception as e:
         return jsonify({'message': 'Error fetching entries', 'error': str(e)}), 500
 
-# ============================================
+# 
 # MAIN ENTRY POINT
-# ============================================
+# 
 
 if __name__ == '__main__':
     print(f'🚀 Server running on http://localhost:{PORT}')
