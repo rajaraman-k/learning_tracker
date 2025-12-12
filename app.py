@@ -8,6 +8,12 @@ from dotenv import load_dotenv
 from functools import wraps
 from collections import defaultdict
 from threading import Thread
+import smtplib
+import ssl
+import schedule
+import time
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 # Load environment variables
