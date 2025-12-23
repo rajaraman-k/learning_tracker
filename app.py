@@ -372,44 +372,31 @@ def dashboard():
         week_entries = [e for e in entries if datetime.fromisoformat(e['date']) >= week_start]
         weekly_hours = sum(e.get('hours', 0) for e in week_entries)
         
-        # Get user's goals
-        goals = list(goals_collection.find({'username': username}))
-        goals_data = []
-        for goal in goals:
-            category = goal['category']
-            target_hours = goal['targetHours']
-            # Calculate actual hours for this category
-            actual_hours = sum(e.get('hours', 0) for e in entries if e.get('category') == category)
-            progress = min(100, int((actual_hours / target_hours) * 100)) if target_hours > 0 else 0
-            
-            goals_data.append({
-                '_id': str(goal['_id']),
-                'category': category,
-                'targetHours': target_hours,
-                'actualHours': round(actual_hours, 1),
-                'progress': progress,
-                'status': goal.get('status', 'in_progress')
-            })
+        # Get goals summary (not full details)
+        total_goals = goals_collection.count_documents({'username': username})
+        active_goals = goals_collection.count_documents({'username': username, 'status': 'in_progress'})
+        completed_goals = goals_collection.count_documents({'username': username, 'status': 'completed'})
         
         stats = {
             'totalEntries': total_entries,
             'totalHours': round(total_hours, 1),
             'weeklyHours': round(weekly_hours, 1),
             'categoryBreakdown': dict(category_hours),
-            'weeklyEntries': len(week_entries)
+            'weeklyEntries': len(week_entries),
+            'totalGoals': total_goals,
+            'activeGoals': active_goals,
+            'completedGoals': completed_goals
         }
         
         return render_template('dashboard.html', 
                              entries=entries, 
                              stats=stats, 
-                             username=username,
-                             goals=goals_data)
+                             username=username)
     except Exception as e:
         print(f"Error in dashboard route: {str(e)}")
         import traceback
         traceback.print_exc()
         return f"Error: {str(e)}", 500
-
 @app.route('/add', methods=['POST'])
 @login_required
 def add_entry():
