@@ -201,39 +201,59 @@
         .delete-btn:hover {
             background: #d32f2f;
         }
-        .goals-section {
-            margin-top: 20px;
+        .goals-summary-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
         }
-        .goal-item {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-        }
-        .goal-header {
+        .goals-summary-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
-        .goal-title {
-            font-weight: 600;
-            color: #333;
+        .goals-summary-header h2 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .goal-progress {
+        .goals-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .goal-stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .goal-stat-value {
+            font-size: 28px;
+            font-weight: bold;
             color: #667eea;
+        }
+        .goal-stat-label {
+            color: #666;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        .view-goals-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
             font-weight: 600;
+            transition: transform 0.2s;
         }
-        .progress-bar {
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
+        .view-goals-btn:hover {
+            transform: translateY(-2px);
         }
         .alert {
             padding: 12px;
@@ -255,11 +275,19 @@
             color: #1565c0;
             border: 1px solid #90caf9;
         }
+        .alert-warning {
+            background-color: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffb74d;
+        }
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
             }
             .entry-item {
+                grid-template-columns: 1fr;
+            }
+            .goals-stats {
                 grid-template-columns: 1fr;
             }
         }
@@ -310,24 +338,27 @@
             </div>
         </div>
 
-        {% if goals %}
-        <div class="card">
-            <h2>Your Goals Progress</h2>
-            <div class="goals-section">
-                {% for goal in goals %}
-                <div class="goal-item">
-                    <div class="goal-header">
-                        <span class="goal-title">{{ goal.category }}</span>
-                        <span class="goal-progress">{{ goal.actualHours }} / {{ goal.targetHours }} hrs ({{ goal.progress }}%)</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: {{ goal.progress }}%"></div>
-                    </div>
-                </div>
-                {% endfor %}
+        <!-- Goals Summary Section -->
+        <div class="goals-summary-card">
+            <div class="goals-summary-header">
+                <h2>🎯 Learning Goals Summary</h2>
             </div>
+            <div class="goals-stats">
+                <div class="goal-stat-box">
+                    <div class="goal-stat-value">{{ stats.totalGoals }}</div>
+                    <div class="goal-stat-label">Total Goals</div>
+                </div>
+                <div class="goal-stat-box">
+                    <div class="goal-stat-value">{{ stats.activeGoals }}</div>
+                    <div class="goal-stat-label">Active Goals</div>
+                </div>
+                <div class="goal-stat-box">
+                    <div class="goal-stat-value">{{ stats.completedGoals }}</div>
+                    <div class="goal-stat-label">Completed</div>
+                </div>
+            </div>
+            <a href="{{ url_for('goals') }}" class="view-goals-btn">View All Goals & Progress →</a>
         </div>
-        {% endif %}
 
         <div class="card">
             <h2>Add New Learning Entry</h2>
